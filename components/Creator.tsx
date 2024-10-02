@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UploadCloud, User, Settings, LogOut, Home, Bell, PlusIcon, X } from 'lucide-react'
+import { UploadCloud, User, Settings, LogOut, Home, Bell, PlusIcon } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import React from 'react'
+import { Textarea } from './ui/textarea'
 
 export default function Dashboard() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -15,15 +18,58 @@ export default function Dashboard() {
   const [uploadedVideos, setUploadedVideos] = useState<any[]>([])
   const [pendingReviews, setPendingReviews] = useState<any[]>([])  
   const [notifications, setNotifications] = useState<string[]>([]) 
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const [fileTitle, setFileTitle] = useState('')
+  const [fileDescription, setFileDescription] = useState('')
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       setUploadedFile(file)
       // Add to uploadedVideos list for demo purposes
       setUploadedVideos([...uploadedVideos, { name: file.name, status: "Pending Review" }])
     }
+
+    if (!uploadedFile) return;  
   }
+
+const handleSubmitUpload = async (event: React.FormEvent) => {
+  event.preventDefault();
+
+  if (!uploadedFile) return; // Ensure there's a file uploaded
+
+  // Create a new file with the user's specified title
+  const newFile = new File([uploadedFile], fileTitle || uploadedFile.name, {
+    type: uploadedFile.type,
+  });
+
+  console.log('Uploading:', { file: newFile, title: fileTitle, description: fileDescription });
+  
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('file', newFile);
+
+  // Send the form data to the server
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    console.error('Error:', response.status, await response.text());
+    return;
+  }
+
+  const data = await response.json();
+  console.log(data); // Handle the response as needed
+
+  // Close the dialog and reset form fields
+  setIsUploadDialogOpen(false);
+  setFileTitle('');
+  setFileDescription('');
+  setUploadedFile(null);
+};
+
 
   const tags = Array.from({ length: 50 }).map(
   (_, i, a) => `Editor.${a.length - i}`
@@ -69,7 +115,7 @@ export default function Dashboard() {
             </Card>
 
             {/* Upload Feature */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Upload Files</CardTitle>
               </CardHeader>
@@ -87,28 +133,70 @@ export default function Dashboard() {
                 {uploadedFile && (
                 <div className='flex justify-between w-full'>
                     <p className="mt-4 text-sm text-gray-500">Uploaded: {uploadedFile.name}</p>
-                    <Button className="mt-4" type="button">Send</Button>
+                    <Button className="mt-4" type="button" onClick={handleFileUpload}>Send</Button>
                 </div>
                 )}
               </CardContent>
-            </Card>
+            </Card> */}
 
-            {/* Uploaded Videos */}
             <Card>
               <CardHeader>
-                <CardTitle>Uploaded Videos</CardTitle>
+                <CardTitle>Upload Files</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2">
-                  {uploadedVideos.length > 0 ? uploadedVideos.map((video, idx) => (
-                    <li key={idx}>
-                      <div className="flex justify-between">
-                        <p>{video.name}</p>
-                        <p>Status: {video.status}</p>
+                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                  <DialogTrigger asChild>
+                    <div className="flex items-center justify-center w-full">
+                      <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <UploadCloud className="w-10 h-10 mb-3 text-gray-400" />
+                          <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                          <p className="text-xs text-gray-500">SVG, PNG, JPG or GIF (MAX. 800x400px)</p>
+                        </div>
+                      </Label>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Upload File</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmitUpload} className="space-y-4">
+                      <div>
+                        <Label htmlFor="file-title">File Title</Label>
+                        <Input
+                          id="file-title"
+                          value={fileTitle}
+                          onChange={(e) => setFileTitle(e.target.value)}
+                          placeholder="Enter file title"
+                          required
+                        />
                       </div>
-                    </li>
-                  )) : <p>No uploaded videos</p>}
-                </ul>
+                      <div>
+                        <Label htmlFor="file-description">File Description</Label>
+                        <Textarea
+                          id="file-description"
+                          value={fileDescription}
+                          onChange={(e) => setFileDescription(e.target.value)}
+                          placeholder="Enter file description"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="file-upload">File</Label>
+                        <Input
+                          id="file-upload"
+                          type="file"
+                          onChange={handleFileUpload}
+                          required
+                        />
+                      </div>
+                      <Button type="submit">Upload</Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                {uploadedFile && (
+                  <p className="mt-4 text-sm text-gray-500">Uploaded: {uploadedFile.name}</p>
+                )}
               </CardContent>
             </Card>
 
@@ -130,6 +218,25 @@ export default function Dashboard() {
                       </div>
                     </li>
                   )) : <p>No pending reviews</p>}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Uploaded Videos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Uploaded Videos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {uploadedVideos.length > 0 ? uploadedVideos.map((video, idx) => (
+                    <li key={idx}>
+                      <div className="flex justify-between">
+                        <p>{video.name}</p>
+                        <p>Status: {video.status}</p>
+                      </div>
+                    </li>
+                  )) : <p>No uploaded videos</p>}
                 </ul>
               </CardContent>
             </Card>
@@ -171,9 +278,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-fit bg-gray-100">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-md">
+      <div className="w-64 bg-white shadow-md ">
         <div className="p-4 flex justify-between">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <Bell className="cursor-pointer" size={24} />

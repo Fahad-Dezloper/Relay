@@ -1,8 +1,11 @@
+import Dashboard from '@/components/Editor'
 import React from 'react'
 
 const Editor = () => {
   return (
-    <div>Editor</div>
+    <div>
+      <Dashboard />
+    </div>
   )
 }
 

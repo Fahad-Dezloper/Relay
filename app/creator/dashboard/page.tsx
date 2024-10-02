@@ -1,4 +1,4 @@
-import Dashboard from '@/components/dashboard'
+import Dashboard from '@/components/Creator'
 import React from 'react'
 
 const Creator = () => {
