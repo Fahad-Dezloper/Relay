@@ -1,67 +1,34 @@
-import NextAuth from "next-auth";
-import Github from "next-auth/providers/github";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { db } from "./db";
-import { saltAndHashPassword } from "./utils/helper";
 
-export const {
-  handlers: { GET, POST },
-  signIn,
-  signOut,
-  auth,
-} = NextAuth({
-  adapter: PrismaAdapter(db),
-  session: { strategy: "jwt" },
+import NextAuth from "next-auth"
+import Google from "next-auth/providers/google"
+import GitHub from "next-auth/providers/github"
+ 
+export function cn() {
+   const role = typeof window !== 'undefined' ? localStorage.getItem("userRole") : null; // Access localStorage only in the client
+  console.log(role);
+  return role;
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
-    Github({
-      clientId: process.env.AUTH_GITHUB_ID,
-      clientSecret: process.env.AUTH_GITHUB_SECRET,
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!, // Use the client ID from .env.local
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!, // Use the client secret from .env.local
     }),
-    Credentials({
-      name: "Credentials",
-      credentials: {
-        email: {
-          label: "Email",
-          type: "email",
-          placeholder: "email@example.com",
-        },
-        password: { label: "Password", type: "password" },
-      },
-      authorize: async (credentials) => {
-        if (!credentials || !credentials.email || !credentials.password) {
-          return null;
-        }
+    GitHub({
+      clientId: process.env.GITHUB_CLIENT_ID!, // Use the client ID from .env.local
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    })],
+  callbacks: {   
+    async session({ session, token, user }) {
+       // Call the cn function to get the role
+      const role = cn(); // Get the role from localStorage
 
-        const email = credentials.email as string;
-        const hash = saltAndHashPassword(credentials.password);
-
-        let user: any = await db.user.findUnique({
-          where: {
-            email,
-          },
-        });
-
-        if (!user) {
-          user = await db.user.create({
-            data: {
-              email,
-              hashedPassword: hash,
-            },
-          });
-        } else {
-          const isMatch = bcrypt.compareSync(
-            credentials.password as string,
-            user.hashedPassword
-          );
-          if (!isMatch) {
-            throw new Error("Incorrect password.");
-          }
-        }
-
-        return user;
-      },
-    }),
-  ],
-});
+      if (role) {
+        session.user.role = role; // Store the role in the session
+      } 
+      console.log(session)
+      return session; // Return the modified session
+    },
+  }
+})
